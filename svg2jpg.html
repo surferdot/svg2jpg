@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>SVG 转 JPG 工具</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+            line-height: 1.6;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .upload-section {
+            border: 2px dashed #ccc;
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            margin: 20px 0;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #f9f9f9;
+        }
+        .upload-section:hover {
+            border-color: #4CAF50;
+            background: #f0f9f0;
+        }
+        .preview-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 16px;
+            margin: 20px 0;
+        }
+        .preview-item {
+            border: 1px solid #eee;
+            padding: 8px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .preview-item img {
+            max-width: 100%;
+            height: auto;
+            border: 1px solid #eee;
+        }
+        .settings {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .setting-group {
+            margin-bottom: 20px;
+        }
+        .setting-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .setting-description {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 10px;
+        }
+        .setting-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            gap: 10px;
+        }
+        .setting-item label {
+            min-width: 100px;
+        }
+        .setting-item input, .setting-item select {
+            width: 150px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-right: 10px;
+        }
+        .error {
+            color: #dc3545;
+            background: #ffe6e6;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .progress {
+            width: 100%;
+            height: 20px;
+            background: #f0f0f0;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+        .progress-bar {
+            height: 100%;
+            background: #4CAF50;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            width: 100%;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        button:disabled {
+            background: #cccccc;
+            cursor: not-allowed;
+        }
+        .status {
+            text-align: center;
+            margin: 10px 0;
+            color: #666;
+        }
+        .help-text {
+            background: #e8f5e9;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>SVG 转 JPG 工具</h1>
+        
+        <div class="help-text">
+            👉 选择SVG文件，设置尺寸和质量，一键转换为JPG格式
+        </div>
+
+        <div id="dropZone" class="upload-section">
+            <div style="font-size: 40px">📁</div>
+            <div>点击或拖拽SVG文件到这里</div>
+            <div style="color: #666; font-size: 14px;">最多可选择50个文件</div>
+        </div>
+        
+        <div id="error" class="error" style="display: none;"></div>
+        
+        <div id="previewGrid" class="preview-grid"></div>
+        
+        <div class="settings">
+            <div class="setting-group">
+                <div class="setting-title">1. 设置图片尺寸</div>
+                <div class="setting-description">
+                    设置转换后的图片大小（像素）
+                </div>
+                <div class="setting-item">
+                    <label>宽度:</label>
+                    <input type="number" id="width" value="451" min="1">
+                    <span>像素</span>
+                </div>
+                <div class="setting-item">
+                    <label>高度:</label>
+                    <input type="number" id="height" value="600" min="1">
+                    <span>像素</span>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <div class="setting-title">2. 选择图片精细度和质量</div>
+                <div class="setting-description">
+                    <p>🔍 DPI决定图片的精细程度，质量决定压缩程度</p>
+                    <p>💡 提示：DPI和质量越高，图片越清晰，但文件也越大</p>
+                </div>
+                <div class="setting-item">
+                    <label>DPI:</label>
+                    <select id="dpi">
+                        <option value="72">普通清晰度 - 适合网页显示</option>
+                        <option value="144" selected>高清清晰度 - 适合高清屏幕</option>
+                        <option value="300">超清清晰度 - 适合打印</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label>图片质量:</label>
+                    <select id="quality">
+                        <option value="60">普通质量 - 文件最小</option>
+                        <option value="80">较好质量 - 文件适中</option>
+                        <option value="95" selected>最佳质量 - 文件较大</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <div class="setting-title">3. 选择背景颜色</div>
+                <div class="setting-item">
+                    <label>背景色:</label>
+                    <input type="color" id="bgColor" value="#ffffff">
+                </div>
+            </div>
+        </div>
+        
+        <div class="progress">
+            <div id="progressBar" class="progress-bar"></div>
+        </div>
+        
+        <div id="status" class="status"></div>
+        
+        <button id="convertBtn" onclick="convertAll()" disabled>
+            请选择SVG文件
+        </button>
+    </div>
+
+    <script>
+        let files = [];
+        const dropZone = document.getElementById('dropZone');
+        const previewGrid = document.getElementById('previewGrid');
+        const error = document.getElementById('error');
+        const convertBtn = document.getElementById('convertBtn');
+        const progressBar = document.getElementById('progressBar');
+        const status = document.getElementById('status');
+
+        function showError(message) {
+            error.style.display = 'block';
+            error.textContent = message;
+            setTimeout(() => {
+                error.style.display = 'none';
+            }, 3000);
+        }
+
+        // 文件拖放处理
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#4CAF50';
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#ccc';
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.style.borderColor = '#ccc';
+            handleFiles(e.dataTransfer.files);
+        });
+
+        dropZone.addEventListener('click', () => {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.multiple = true;
+            input.accept = '.svg';
+            input.onchange = (e) => handleFiles(e.target.files);
+            input.click();
+        });
+
+        function handleFiles(fileList) {
+            error.style.display = 'none';
+            const svgFiles = Array.from(fileList).filter(file => 
+                file.type === 'image/svg+xml' || file.name.toLowerCase().endsWith('.svg')
+            );
+            
+            if (svgFiles.length === 0) {
+                showError('请选择SVG文件');
+                return;
+            }
+            
+            if (svgFiles.length > 50) {
+                showError('最多只能选择50个文件');
+                return;
+            }
+
+            files = svgFiles;
+            updatePreview();
+            updateButton();
+        }
+
+        function updatePreview() {
+            previewGrid.innerHTML = '';
+            files.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const div = document.createElement('div');
+                    div.className = 'preview-item';
+                    div.innerHTML = `
+                        <img src="${e.target.result}" alt="${file.name}">
+                        <div style="margin-top: 8px; font-size: 14px;">${file.name}</div>
+                    `;
+                    previewGrid.appendChild(div);
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function updateButton() {
+            convertBtn.disabled = files.length === 0;
+            convertBtn.textContent = files.length === 0 
+                ? '请选择SVG文件' 
+                : `转换 ${files.length} 个文件`;
+        }
+
+        async function convertAll() {
+            if (files.length === 0) {
+                showError('请先选择文件');
+                return;
+            }
+
+            const width = parseInt(document.getElementById('width').value) || 451;
+            const height = parseInt(document.getElementById('height').value) || 600;
+            const quality = parseInt(document.getElementById('quality').value) || 95;
+            const dpi = parseInt(document.getElementById('dpi').value) || 144;
+            const bgColor = document.getElementById('bgColor').value;
+
+            // 根据DPI计算缩放比例
+            const scale = dpi / 72;
+            
+            convertBtn.disabled = true;
+            convertBtn.textContent = '正在转换...';
+            
+            // 创建画布
+            const canvas = document.createElement('canvas');
+            canvas.width = width * scale;
+            canvas.height = height * scale;
+            const ctx = canvas.getContext('2d');
+            
+            // 设置渲染质量
+            ctx.scale(scale, scale);
+            ctx.imageSmoothingEnabled = true;
+            ctx.imageSmoothingQuality = 'high';
+
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                try {
+                    // 更新进度
+                    const progress = ((i + 1) / files.length) * 100;
+                    progressBar.style.width = `${progress}%`;
+                    status.textContent = `正在处理: ${file.name} (${i + 1}/${files.length})`;
+
+                    // 读取SVG文件
+                    const svgUrl = await new Promise((resolve) => {
+                        const reader = new FileReader();
+                        reader.onload = (e) => resolve(e.target.result);
+                        reader.readAsDataURL(file);
+                    });
+
+                    // 加载图片
+                    const img = new Image();
+                    img.src = svgUrl;
+                    await new Promise((resolve) => {
+                        img.onload = resolve;
+                    });
+
+                    // 设置背景色
+                    ctx.fillStyle = bgColor;
+                    ctx.fillRect(0, 0, width, height);
+
+                    // 计算缩放比例并绘制图片
+                    const imageScale = Math.min(width / img.width, height / img.height);
+                    const scaledWidth = img.width * imageScale;
+                    const scaledHeight = img.height * imageScale;
+                    const x = (width - scaledWidth) / 2;
+                    const y = (height - scaledHeight) / 2;
+
+                    ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
+
+                    // 转换为JPG并下载
+                    const jpgUrl = canvas.toDataURL('image/jpeg', quality / 100);
+                    const link = document.createElement('a');
+                    link.download = file.name.replace(/\.svg$/i, '.jpg');
+                    link.href = jpgUrl;
+                    link.click();
+
+                    // 添加延迟避免浏览器卡顿
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                } catch (err) {
+                    console.error(`处理文件 ${file.name} 时出错:`, err);
+                    showError(`处理文件 ${file.name} 时出错`);
+                }
+            }
+
+            status.textContent = '转换完成！';
+            progressBar.style.width = '100%';
+            
+            // 重置按钮状态
+            convertBtn.disabled = false;
+            convertBtn.textContent = `转换 ${files.length} 个文件`;
+            
+            // 3秒后清除状态信息
+            setTimeout(() => {
+                status.textContent = '';
+                progressBar.style.width = '0%';
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
